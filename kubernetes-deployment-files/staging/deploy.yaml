@@ -29,8 +29,6 @@ spec:
           env:
             - name: PORT
               value: "8787"
-            - name: YODECK_BASE_URL
-              value: https://app.yodeck.com/api/v2
             - name: ALLOWED_ORIGINS
               valueFrom:
                 secretKeyRef: { name: cms-playground-secrets, key: ALLOWED_ORIGINS }
