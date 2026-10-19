@@ -1,0 +1,120 @@
+trigger:
+  - staging
+
+pr: none
+
+resources:
+  - repo: self
+
+variables:
+  - group: smtp-alert
+  # ACCESS_KEY, YODECK_API_TOKEN, CAMERA_RTSP_URL (secret), ALLOWED_ORIGINS
+  - group: cms-playground-staging
+  - name: agent_pool
+    value: 'default'
+  - name: registry-service-connection
+    value: 'dockerhub'
+  - name: tag
+    value: 'staging-$(Build.BuildId)'
+  - name: repo
+    value: 'wobotintel/cms-playground-backend'
+  - name: namespace
+    value: 'cms-playground'
+
+stages:
+- stage: Login_Build_Push
+  displayName: Login,Build,Push
+  jobs:
+    - job: Build_Push
+      displayName: Build & Push
+      pool: $(agent_pool)
+      steps:
+        - task: Docker@2
+          inputs:
+            containerRegistry: $(registry-service-connection)
+            repository: $(repo)
+            command: 'build'
+            Dockerfile: '$(Build.SourcesDirectory)/backend/Dockerfile'
+            buildContext: '$(Build.SourcesDirectory)/backend'
+            tags: '$(tag)'
+        - task: TrivyScan@1
+          name: trivy
+          displayName: 'Scan Docker Image with Trivy'
+          inputs:
+            scanType: 'image'
+            image: '$(repo):$(tag)'
+            scanners: 'vuln,misconfig,secret'
+            severity: 'HIGH,CRITICAL'
+            trivyVersion: 'v0.70.0'
+
+            maxFixableCritical: '5'
+            maxFixableHigh: '5'
+            failOnSecrets: true
+
+            sendEmail: true
+            emailWhen: 'gateFailed'
+            smtpHost: 'email-smtp.ap-south-1.amazonaws.com'
+            smtpPort: '587'
+            smtpSecure: 'starttls'
+            smtpUser: '$(smtpuser)'
+            smtpPassword: '$(smtppass)'
+            mailFrom: 'azure-cicd@wobot.ai'
+            mailFromName: 'azure-cicd-alerts'
+            mailTo: 'bandhan.roy@wobot.ai'
+        - task: Docker@2
+          inputs:
+            containerRegistry: $(registry-service-connection)
+            repository: $(repo)
+            command: 'push'
+            tags: '$(tag)'
+- stage: Deploy_To_GKE
+  displayName: Deploy To GKE
+  jobs:
+  - job: Deploy_To_GKE
+    displayName: Deploy To GKE
+    pool:
+      name: $(agent_pool)
+    steps:
+    - bash: |
+        echo "Cleaning up faulty Nodesource repository..."
+        sudo rm -f /etc/apt/sources.list.d/nodesource.list
+        sudo DEBIAN_FRONTEND=noninteractive apt-get update
+      displayName: 'Fix Nodesource Repository'
+
+    - bash: |
+        sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
+        if [ ! -f /usr/share/keyrings/cloud.google.gpg ]; then
+          curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
+          sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+        fi
+        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | \
+          sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list > /dev/null
+        sudo apt-get update && sudo apt-get install -y google-cloud-sdk google-cloud-sdk-gke-gcloud-auth-plugin kubectl
+      displayName: 'Install Google Cloud SDK, auth plugin, kubectl'
+
+    - task: Bash@3
+      displayName: 'Authenticate to GCP'
+      inputs:
+        targetType: 'inline'
+        script: |
+          set -e
+          echo "$GCP_SERVICE_ACCOUNT_KEY" > gke-key.json
+          gcloud auth activate-service-account --key-file=gke-key.json
+          rm gke-key.json
+          gcloud config set project staging-wobot
+          gcloud container clusters get-credentials dev-aks-cluster --zone asia-south1-a --project staging-wobot
+      env:
+        GCP_SERVICE_ACCOUNT_KEY: $(serviceaccount_staginggcp)
+
+
+    - task: Bash@3
+      displayName: 'Deploy'
+      inputs:
+        targetType: 'inline'
+        script: |
+          set -e
+          sed -i "s|{{IMAGE}}|$(repo):$(tag)|g" kubernetes-deployment-files/staging/deploy.yaml
+          kubectl apply -f kubernetes-deployment-files/staging/deploy.yaml -n $(namespace)
+          # The secret may have changed without the image changing; restart so pods pick it up.
+          kubectl rollout restart deployment/cms-playground-backend -n $(namespace)
+          kubectl rollout status deployment/cms-playground-backend -n $(namespace) --timeout=180s
