@@ -8,8 +8,6 @@ resources:
 
 variables:
   - group: smtp-alert
-  # ACCESS_KEY, YODECK_API_TOKEN, CAMERA_RTSP_URL (secret), ALLOWED_ORIGINS
-  - group: cms-playground-staging
   - name: agent_pool
     value: 'default'
   - name: registry-service-connection
