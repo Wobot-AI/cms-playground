@@ -12,7 +12,7 @@ variables:
   - name: agent_pool
     value: 'default'
   - name: registry-service-connection
-    value: 'dockerhub'
+    value: 'dockerhub-wobotintel'
   - name: tag
     value: 'staging-$(Build.BuildId)'
   - name: repo
