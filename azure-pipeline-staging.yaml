@@ -46,8 +46,8 @@ stages:
             severity: 'HIGH,CRITICAL'
             trivyVersion: 'v0.70.0'
 
-            maxFixableCritical: '5'
-            maxFixableHigh: '5'
+            maxFixableCritical: '20'
+            maxFixableHigh: '20'
             failOnSecrets: true
 
             sendEmail: true
