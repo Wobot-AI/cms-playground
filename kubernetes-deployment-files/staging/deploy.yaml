@@ -23,6 +23,7 @@ spec:
         - name: backend
           image: {{IMAGE}}
           imagePullPolicy: IfNotPresent
+          imagePullSecret: regcred
           ports:
             - name: http
               containerPort: 8787
