@@ -226,15 +226,18 @@ export function SetupPanel({ adapter }: { adapter: CmsAdapter }) {
         ) : (
           <>
             <span className="pill live">Run in progress · {activeRun?.status}</span>
-            <button onClick={() => void releaseNow()} disabled={Boolean(activeRun?.release)}>
-              Revert now
-            </button>
-            <button onClick={() => finishRun()} disabled={!activeRun?.release}>
-              Finish
-            </button>
-            <button className="danger" onClick={() => void abortRun()}>
-              Abort
-            </button>
+            {!activeRun?.release ? (
+              <>
+                <button onClick={() => void releaseNow()}>Revert now</button>
+                <button className="danger" onClick={() => void abortRun()}>
+                  Abort
+                </button>
+              </>
+            ) : (
+              <button className="primary" onClick={() => finishRun()}>
+                Finish (ad is back)
+              </button>
+            )}
           </>
         )}
       </div>

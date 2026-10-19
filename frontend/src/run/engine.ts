@@ -13,10 +13,13 @@ const KEEP_FRAMES_FOR_RUNS = 6
 function loadRuns(): Run[] {
   try {
     const runs = JSON.parse(localStorage.getItem(RUNS_KEY) ?? '[]') as Run[]
-    // Anything still "in flight" belongs to a page that was closed mid-run.
-    return runs.map((r) =>
-      ['starting', 'waiting-release', 'released'].includes(r.status) ? { ...r, status: 'aborted', hasFrames: false } : { ...r, hasFrames: false },
-    )
+    // Once the revert went out the measurement is complete, however the run ended
+    // (Abort pressed after the ad was back, or page closed). Before that it's aborted.
+    return runs.map((r) => ({
+      ...r,
+      hasFrames: false,
+      status: r.status === 'failed' || r.status === 'done' ? r.status : r.release?.ok ? 'done' : 'aborted',
+    }))
   } catch {
     return []
   }
@@ -147,6 +150,8 @@ class RunController {
   }
 
   async abort() {
+    // After the revert there is nothing to undo: the run is complete, not aborted.
+    if (getRun(this.run.id)?.release?.ok) return this.finish()
     log('run', 'Run aborted by user', { level: 'warn' })
     await this.release('Releasing takeover now (abort)')
     this.finish('aborted')

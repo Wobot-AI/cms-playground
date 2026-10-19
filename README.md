@@ -80,7 +80,9 @@ api.example.com {
 
 - Root directory: `frontend`
 - Build command: `npm run build`, output directory: `dist`
-- Environment variable: `VITE_API_BASE_URL=https://api.example.com`
+- Backend URL comes from `frontend/.env.production`
+  (`VITE_API_BASE_URL=https://cms-playground.wobot.ai`). A `VITE_API_BASE_URL` set in the
+  Vercel dashboard overrides it.
 
 On first visit the page asks for the access key and keeps it in that browser.
 
