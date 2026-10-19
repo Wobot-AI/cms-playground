@@ -1,0 +1,59 @@
+# CMS Ad Timing Lab backend (staging). The frontend is on Vercel and calls this over HTTPS.
+# {{IMAGE}} is replaced by the pipeline. The Secret "cms-playground-secrets" is created by the
+# pipeline from the "cms-playground-staging" variable group.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cms-playground-backend
+  labels:
+    app: cms-playground-backend
+spec:
+  # One replica: each pod runs its own ffmpeg against the camera, and the run timing
+  # is per-browser anyway, so there is nothing to gain from more.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cms-playground-backend
+  template:
+    metadata:
+      labels:
+        app: cms-playground-backend
+    spec:
+      containers:
+        - name: backend
+          image: {{IMAGE}}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8787
+          env:
+            - name: PORT
+              value: "8787"
+            - name: YODECK_BASE_URL
+              value: https://app.yodeck.com/api/v2
+            - name: ALLOWED_ORIGINS
+              valueFrom:
+                secretKeyRef: { name: cms-playground-secrets, key: ALLOWED_ORIGINS }
+            - name: ACCESS_KEY
+              valueFrom:
+                secretKeyRef: { name: cms-playground-secrets, key: ACCESS_KEY }
+            - name: YODECK_API_TOKEN
+              valueFrom:
+                secretKeyRef: { name: cms-playground-secrets, key: YODECK_API_TOKEN }
+            - name: CAMERA_RTSP_URL
+              valueFrom:
+                secretKeyRef: { name: cms-playground-secrets, key: CAMERA_RTSP_URL }
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 250m, memory: 256Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+
