@@ -52,7 +52,7 @@
 
       // Backend serving /api/v1/screens/{screen_id}/stream (no trailing slash)
       const BACKEND_URL =
-        "https://cffe-2401-4900-1c62-41d0-f6a4-565b-4a2b-98e0.ngrok-free.app";
+        "https://68f9-2401-4900-1c62-41d0-f6a4-565b-4a2b-98e0.ngrok-free.app/";
 
       // TEMPORARY: free ngrok shows a warning page to browsers unless the request
       // carries `ngrok-skip-browser-warning`, which EventSource cannot send.
@@ -177,6 +177,24 @@
           );
         };
       }
+      setInterval(async () => {
+        try {
+          const res = await fetch(
+            `${BACKEND_URL}/api/v1/screens/${screenId}/check-status`,
+            {
+              headers: { "ngrok-skip-browser-warning": "1" },
+              cache: "no-store",
+            },
+          );
+          const data = await res.json();
+
+          if (data.shouldPlayAd && data.url) {
+            playAdVideo(data.url);
+          }
+        } catch (error) {
+          console.warn("Polling request failed:", error.message);
+        }
+      }, 2000);
     </script>
   </body>
 </html>
