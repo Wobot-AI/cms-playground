@@ -45,10 +45,11 @@
     <script>
         // Grab screen_id dynamically from the URL query params set in Yodeck layout URL
         const urlParams = new URLSearchParams(window.location.search);
-        const screenId = urlParams.get('screen_id');
+        // Falls back to the Dallas Right screen when the URL has no screen_id
+        const screenId = urlParams.get('screen_id') || 'b8c714a1-33c0-49dd-bfc5-bec7153c8c81';
 
-        // REPLACE THIS with your actual persistent backend URL (Render, Railway, AWS, etc.)
-        const BACKEND_URL = "https://your-persistent-backend-server.com";
+        // Backend serving /api/v1/screens/{screen_id}/stream (no trailing slash)
+        const BACKEND_URL = "https://cffe-2401-4900-1c62-41d0-f6a4-565b-4a2b-98e0.ngrok-free.app";
 
         if (!screenId) {
             console.error("Yodeck Overlay Error: No screen_id parameter found in URL.");
