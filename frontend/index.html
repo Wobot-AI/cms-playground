@@ -1,12 +1,98 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CMS Ad Timing Lab</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yodeck Instant Ad Overlay</title>
+    <style>
+        /* CRITICAL: Make page transparent and ignore clicks when idle */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background: transparent !important;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        /* Hidden by default; turns black and blocks clicks only when ad plays */
+        #ad-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            background: #000000;
+            z-index: 9999;
+            pointer-events: auto;
+        }
+
+        #ad-player {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ad-container">
+        <video id="ad-player" playsinline></video>
+    </div>
+
+    <script>
+        // Grab screen_id dynamically from the URL query params set in Yodeck layout URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const screenId = urlParams.get('screen_id');
+
+        // REPLACE THIS with your actual persistent backend URL (Render, Railway, AWS, etc.)
+        const BACKEND_URL = "https://your-persistent-backend-server.com";
+
+        if (!screenId) {
+            console.error("Yodeck Overlay Error: No screen_id parameter found in URL.");
+        } else {
+            // Establish persistent Server-Sent Events stream
+            const eventSource = new EventSource(`${BACKEND_URL}/api/v1/screens/${screenId}/stream`);
+
+            eventSource.addEventListener('open', () => {
+                console.log(`Connected to SSE stream for screen: ${screenId}`);
+            });
+
+            eventSource.addEventListener('play-ad', function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    const adContainer = document.getElementById('ad-container');
+                    const adPlayer = document.getElementById('ad-player');
+
+                    if (data.url) {
+                        console.log("Triggering instant ad playback:", data.url);
+                        adPlayer.src = data.url;
+                        adContainer.style.display = 'block';
+
+                        // Play the ad video over Yodeck's background playlist
+                        adPlayer.play().catch(err => {
+                            console.error("Browser autoplay restriction caught:", err);
+                        });
+
+                        // Revert back to transparent background when ad finishes
+                        adPlayer.onended = () => {
+                            console.log("Ad finished. Resuming background playlist view.");
+                            adPlayer.pause();
+                            adPlayer.src = '';
+                            adContainer.style.display = 'none';
+                        };
+                    }
+                } catch (parseError) {
+                    console.error("Failed to parse incoming ad payload:", parseError);
+                }
+            });
+
+            eventSource.onerror = (error) => {
+                console.warn("SSE connection interrupted. Browser will auto-reconnect...", error);
+            };
+        }
+    </script>
+</body>
 </html>
