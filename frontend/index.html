@@ -1,152 +1,182 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Yodeck Instant Ad Overlay</title>
     <style>
-        /* CRITICAL: Make page transparent and ignore clicks when idle */
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
-            background: transparent !important;
-            overflow: hidden;
-            pointer-events: none;
-        }
+      /* CRITICAL: Make page transparent and ignore clicks when idle */
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        height: 100vh;
+        background: transparent !important;
+        overflow: hidden;
+        pointer-events: none;
+      }
 
-        /* Hidden by default; turns black and blocks clicks only when ad plays */
-        #ad-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-            background: #000000;
-            z-index: 9999;
-            pointer-events: auto;
-        }
+      /* Hidden by default; turns black and blocks clicks only when ad plays */
+      #ad-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: none;
+        background: #000000;
+        z-index: 9999;
+        pointer-events: auto;
+      }
 
-        #ad-player {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+      #ad-player {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
     </style>
-</head>
-<body>
-
+  </head>
+  <body>
     <div id="ad-container">
-        <video id="ad-player" playsinline></video>
+      <!-- ADDED: autoplay, muted, and playsinline are mandatory for Tizen autoplay -->
+      <video id="ad-player" playsinline autoplay muted></video>
     </div>
 
     <script>
-        // Grab screen_id dynamically from the URL query params set in Yodeck layout URL
-        const urlParams = new URLSearchParams(window.location.search);
-        // Falls back to the Dallas Right screen when the URL has no screen_id
-        const screenId = urlParams.get('screen_id') || 'b8c714a1-33c0-49dd-bfc5-bec7153c8c81';
+      // Grab screen_id dynamically from the URL query params set in Yodeck layout URL
+      const urlParams = new URLSearchParams(window.location.search);
+      // Falls back to the Dallas Right screen when the URL has no screen_id
+      const screenId =
+        urlParams.get("screen_id") || "b8c714a1-33c0-49dd-bfc5-bec7153c8c81";
 
-        // Backend serving /api/v1/screens/{screen_id}/stream (no trailing slash)
-        const BACKEND_URL = "https://cffe-2401-4900-1c62-41d0-f6a4-565b-4a2b-98e0.ngrok-free.app";
+      // Backend serving /api/v1/screens/{screen_id}/stream (no trailing slash)
+      const BACKEND_URL =
+        "https://cffe-2401-4900-1c62-41d0-f6a4-565b-4a2b-98e0.ngrok-free.app";
 
-        // TEMPORARY: free ngrok shows a warning page to browsers unless the request
-        // carries `ngrok-skip-browser-warning`, which EventSource cannot send.
-        // Set to false once the backend is on a real domain to use EventSource again.
-        const USE_FETCH_STREAM = true;
-        const RECONNECT_MS = 3000;
+      // TEMPORARY: free ngrok shows a warning page to browsers unless the request
+      // carries `ngrok-skip-browser-warning`, which EventSource cannot send.
+      // Set to false once the backend is on a real domain to use EventSource again.
+      const USE_FETCH_STREAM = true;
+      const RECONNECT_MS = 3000;
 
-        function handlePlayAd(event) {
-            try {
-                const data = JSON.parse(event.data);
-                const adContainer = document.getElementById('ad-container');
-                const adPlayer = document.getElementById('ad-player');
+      function handlePlayAd(event) {
+        try {
+          const data = JSON.parse(event.data);
+          const adContainer = document.getElementById("ad-container");
+          const adPlayer = document.getElementById("ad-player");
 
-                if (data.url) {
-                    console.log("Triggering instant ad playback:", data.url);
-                    adPlayer.src = data.url;
-                    adContainer.style.display = 'block';
+          if (data.url) {
+            console.log("Triggering instant ad playback:", data.url);
 
-                    // Play the ad video over Yodeck's background playlist
-                    adPlayer.play().catch(err => {
-                        console.error("Browser autoplay restriction caught:", err);
-                    });
+            // Always start muted so Samsung Tizen allows immediate autoplay
+            adPlayer.muted = true;
+            adPlayer.src = data.url;
+            adContainer.style.display = "block";
 
-                    // Revert back to transparent background when ad finishes
-                    adPlayer.onended = () => {
-                        console.log("Ad finished. Resuming background playlist view.");
-                        adPlayer.pause();
-                        adPlayer.src = '';
-                        adContainer.style.display = 'none';
-                    };
-                }
-            } catch (parseError) {
-                console.error("Failed to parse incoming ad payload:", parseError);
-            }
-        }
+            // Play the ad video over Yodeck's background playlist
+            const playPromise = adPlayer.play();
 
-        // Same stream as EventSource, read with fetch so it can send headers.
-        // Parses SSE blocks ("event:" / "data:" lines, blank line between events)
-        // and reconnects on its own, like EventSource does.
-        async function connectWithFetch(url) {
-            try {
-                const res = await fetch(url, {
-                    headers: { 'Accept': 'text/event-stream', 'ngrok-skip-browser-warning': '1' },
-                    cache: 'no-store',
+            if (playPromise !== undefined) {
+              playPromise
+                .then(() => {
+                  // Once playback starts, unmute so audio plays fully!
+                  adPlayer.muted = false;
+                  console.log(
+                    "Ad playback started successfully. Unmuted audio.",
+                  );
+                })
+                .catch((err) => {
+                  console.error("Browser autoplay restriction caught:", err);
                 });
-                if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
-                console.log(`Connected to SSE stream for screen: ${screenId}`);
-
-                const reader = res.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-                for (;;) {
-                    const { value, done } = await reader.read();
-                    if (done) throw new Error('stream closed by server');
-                    buffer += decoder.decode(value, { stream: true });
-                    const blocks = buffer.split(/\r?\n\r?\n/);
-                    buffer = blocks.pop(); // last piece may be incomplete
-                    for (const block of blocks) {
-                        let eventName = 'message';
-                        const dataLines = [];
-                        for (const line of block.split(/\r?\n/)) {
-                            if (!line || line.startsWith(':')) continue; // comment / keepalive
-                            const i = line.indexOf(':');
-                            const field = i < 0 ? line : line.slice(0, i);
-                            const val = i < 0 ? '' : line.slice(i + 1).replace(/^ /, '');
-                            if (field === 'event') eventName = val;
-                            else if (field === 'data') dataLines.push(val);
-                        }
-                        if (eventName === 'play-ad' && dataLines.length) {
-                            handlePlayAd({ data: dataLines.join('\n') });
-                        }
-                    }
-                }
-            } catch (error) {
-                console.warn(`SSE connection interrupted (${error.message}). Reconnecting in ${RECONNECT_MS / 1000}s...`);
-                setTimeout(() => connectWithFetch(url), RECONNECT_MS);
             }
-        }
 
-        if (!screenId) {
-            console.error("Yodeck Overlay Error: No screen_id parameter found in URL.");
-        } else if (USE_FETCH_STREAM) {
-            connectWithFetch(`${BACKEND_URL}/api/v1/screens/${screenId}/stream`);
-        } else {
-            // Establish persistent Server-Sent Events stream
-            const eventSource = new EventSource(`${BACKEND_URL}/api/v1/screens/${screenId}/stream`);
-
-            eventSource.addEventListener('open', () => {
-                console.log(`Connected to SSE stream for screen: ${screenId}`);
-            });
-
-            eventSource.addEventListener('play-ad', handlePlayAd);
-
-            eventSource.onerror = (error) => {
-                console.warn("SSE connection interrupted. Browser will auto-reconnect...", error);
+            // Revert back to transparent background when ad finishes
+            adPlayer.onended = () => {
+              console.log("Ad finished. Resuming background playlist view.");
+              adPlayer.pause();
+              adPlayer.src = "";
+              adContainer.style.display = "none";
             };
+          }
+        } catch (parseError) {
+          console.error("Failed to parse incoming ad payload:", parseError);
         }
+      }
+
+      // Same stream as EventSource, read with fetch so it can send headers.
+      // Parses SSE blocks ("event:" / "data:" lines, blank line between events)
+      // and reconnects on its own, like EventSource does.
+      async function connectWithFetch(url) {
+        try {
+          const res = await fetch(url, {
+            headers: {
+              Accept: "text/event-stream",
+              "ngrok-skip-browser-warning": "1",
+            },
+            cache: "no-store",
+          });
+          if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+          console.log(`Connected to SSE stream for screen: ${screenId}`);
+
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) throw new Error("stream closed by server");
+            buffer += decoder.decode(value, { stream: true });
+            const blocks = buffer.split(/\r?\n\r?\n/);
+            buffer = blocks.pop(); // last piece may be incomplete
+            for (const block of blocks) {
+              let eventName = "message";
+              const dataLines = [];
+              for (const line of block.split(/\r?\n/)) {
+                if (!line || line.startsWith(":")) continue; // comment / keepalive
+                const i = line.indexOf(":");
+                const field = i < 0 ? line : line.slice(0, i);
+                const val = i < 0 ? "" : line.slice(i + 1).replace(/^ /, "");
+                if (field === "event") eventName = val;
+                else if (field === "data") dataLines.push(val);
+              }
+              if (eventName === "play-ad" && dataLines.length) {
+                handlePlayAd({ data: dataLines.join("\n") });
+              }
+            }
+          }
+        } catch (error) {
+          console.warn(
+            `SSE connection interrupted (${error.message}). Reconnecting in ${RECONNECT_MS / 1000}s...`,
+          );
+          setTimeout(() => connectWithFetch(url), RECONNECT_MS);
+        }
+      }
+
+      if (!screenId) {
+        console.error(
+          "Yodeck Overlay Error: No screen_id parameter found in URL.",
+        );
+      } else if (USE_FETCH_STREAM) {
+        connectWithFetch(`${BACKEND_URL}/api/v1/screens/${screenId}/stream`);
+      } else {
+        // Establish persistent Server-Sent Events stream
+        const eventSource = new EventSource(
+          `${BACKEND_URL}/api/v1/screens/${screenId}/stream`,
+        );
+
+        eventSource.addEventListener("open", () => {
+          console.log(`Connected to SSE stream for screen: ${screenId}`);
+        });
+
+        eventSource.addEventListener("play-ad", handlePlayAd);
+
+        eventSource.onerror = (error) => {
+          console.warn(
+            "SSE connection interrupted. Browser will auto-reconnect...",
+            error,
+          );
+        };
+      }
     </script>
-</body>
+  </body>
 </html>
