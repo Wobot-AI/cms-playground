@@ -52,9 +52,13 @@
         const adPlayer = document.getElementById("ad-player");
 
         console.log("Playing instant ad:", videoUrl);
+
+        // Force container visible with a bright red background for testing
+        adContainer.style.background = "#ff0000";
+        adContainer.style.display = "block";
+
         adPlayer.muted = true;
         adPlayer.src = videoUrl;
-        adContainer.style.display = "block";
 
         const playPromise = adPlayer.play();
         if (playPromise !== undefined) {
@@ -64,14 +68,11 @@
             })
             .catch((err) => {
               console.error("Autoplay blocked:", err);
-              adContainer.style.display = "none";
             });
         }
 
         adPlayer.onerror = (e) => {
-          console.error("Video error:", e);
-          adContainer.style.display = "none";
-          adPlayer.src = "";
+          console.error("Video element error on Tizen:", e);
         };
 
         adPlayer.onended = () => {
