@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Yodeck Instant Ad Overlay</title>
     <style>
-      /* CRITICAL: Make page transparent and ignore clicks when idle */
       body,
       html {
         margin: 0;
@@ -17,7 +16,6 @@
         pointer-events: none;
       }
 
-      /* Hidden by default; turns black and blocks clicks only when ad plays */
       #ad-container {
         position: absolute;
         top: 0;
@@ -39,7 +37,6 @@
   </head>
   <body>
     <div id="ad-container">
-      <!-- ADDED: autoplay, muted, and playsinline are mandatory for Tizen autoplay -->
       <video id="ad-player" playsinline autoplay muted></video>
     </div>
 
@@ -47,8 +44,6 @@
       const urlParams = new URLSearchParams(window.location.search);
       const screenId =
         urlParams.get("screen_id") || "b8c714a1-33c0-49dd-bfc5-bec7153c8c81";
-
-      // Make sure there is NO trailing slash here!
       const BACKEND_URL =
         "https://73f1-2401-4900-1c62-41d0-f6a4-565b-4a2b-98e0.ngrok-free.app";
 
@@ -65,12 +60,19 @@
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
-              adPlayer.muted = false; // Unmute once playing
+              adPlayer.muted = false;
             })
             .catch((err) => {
               console.error("Autoplay blocked:", err);
+              adContainer.style.display = "none";
             });
         }
+
+        adPlayer.onerror = (e) => {
+          console.error("Video error:", e);
+          adContainer.style.display = "none";
+          adPlayer.src = "";
+        };
 
         adPlayer.onended = () => {
           adPlayer.pause();
@@ -79,7 +81,7 @@
         };
       }
 
-      // Poll backend every 2 seconds for a pending ad trigger
+      // Poll backend every 2 seconds
       setInterval(async () => {
         try {
           const res = await fetch(
