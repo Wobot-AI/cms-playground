@@ -3,9 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Yodeck Instant Ad Overlay</title>
+    <title>Yodeck Instant DOM Test</title>
     <style>
-      /* Base page transparent when idle */
       body,
       html {
         margin: 0;
@@ -17,30 +16,28 @@
         pointer-events: none;
       }
 
-      /* CRITICAL FOR TIZEN: Use a solid background or opaque layer so Tizen renders it */
-      #ad-container {
+      #test-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100vw;
         height: 100vh;
         display: none;
-        background: #000000; /* Solid black layer to force hardware composite */
-        z-index: 2147483647; /* Maximum possible z-index */
+        background: #00ff00; /* Bright Neon Green */
+        z-index: 2147483647;
+        justify-content: center;
+        align-items: center;
+        font-family: Arial, sans-serif;
+        font-size: 80px;
+        font-weight: bold;
+        color: #000000;
+        text-align: center;
         pointer-events: auto;
-      }
-
-      #ad-player {
-        width: 100%;
-        height: 100%;
-        object-fit: fill; /* Forces Tizen to stretch/scale correctly */
       }
     </style>
   </head>
   <body>
-    <div id="ad-container">
-      <video id="ad-player" playsinline autoplay muted></video>
-    </div>
+    <div id="test-overlay">AD TRIGGERED SUCCESSFULLY!</div>
 
     <script>
       const urlParams = new URLSearchParams(window.location.search);
@@ -49,43 +46,17 @@
       const BACKEND_URL =
         "https://73f1-2401-4900-1c62-41d0-f6a4-565b-4a2b-98e0.ngrok-free.app";
 
-      function playAdVideo(videoUrl) {
-        const adContainer = document.getElementById("ad-container");
-        const adPlayer = document.getElementById("ad-player");
+      function showVisualAlert() {
+        const overlay = document.getElementById("test-overlay");
+        console.log("Triggering visual DOM change on screen");
 
-        console.log("Playing instant ad on Tizen:", videoUrl);
+        // Force display block with bright green background
+        overlay.style.display = "flex";
 
-        // Force display block first
-        adContainer.style.display = "block";
-        adPlayer.muted = true;
-        adPlayer.src = videoUrl;
-
-        // Force load & play for Tizen hardware decoder
-        adPlayer.load();
-        const playPromise = adPlayer.play();
-
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              console.log("Playback started successfully.");
-            })
-            .catch((err) => {
-              console.error("Tizen Autoplay blocked:", err);
-            });
-        }
-
-        adPlayer.onerror = (e) => {
-          console.error("Tizen Video Decoder Error:", e);
-          adContainer.style.display = "none";
-          adPlayer.src = "";
-        };
-
-        adPlayer.onended = () => {
-          console.log("Ad finished, resuming background.");
-          adPlayer.pause();
-          adPlayer.src = "";
-          adContainer.style.display = "none";
-        };
+        // Auto-hide after 5 seconds so we can test re-triggering
+        setTimeout(() => {
+          overlay.style.display = "none";
+        }, 5000);
       }
 
       // Poll backend every 2 seconds
@@ -100,8 +71,8 @@
           );
           const data = await res.json();
 
-          if (data.shouldPlayAd && data.url) {
-            playAdVideo(data.url);
+          if (data.shouldPlayAd) {
+            showVisualAlert();
           }
         } catch (error) {
           console.warn("Polling request failed:", error.message);
