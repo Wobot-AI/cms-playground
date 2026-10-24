@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Yodeck Instant Ad Overlay</title>
     <style>
+      /* Base page transparent when idle */
       body,
       html {
         margin: 0;
@@ -16,22 +17,23 @@
         pointer-events: none;
       }
 
+      /* CRITICAL FOR TIZEN: Use a solid background or opaque layer so Tizen renders it */
       #ad-container {
-        position: absolute;
+        position: fixed;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
+        width: 100vw;
+        height: 100vh;
         display: none;
-        background: #000000;
-        z-index: 9999;
+        background: #000000; /* Solid black layer to force hardware composite */
+        z-index: 2147483647; /* Maximum possible z-index */
         pointer-events: auto;
       }
 
       #ad-player {
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: fill; /* Forces Tizen to stretch/scale correctly */
       }
     </style>
   </head>
@@ -51,31 +53,35 @@
         const adContainer = document.getElementById("ad-container");
         const adPlayer = document.getElementById("ad-player");
 
-        console.log("Playing instant ad:", videoUrl);
+        console.log("Playing instant ad on Tizen:", videoUrl);
 
-        // Force container visible with a bright red background for testing
-        adContainer.style.background = "#ff0000";
+        // Force display block first
         adContainer.style.display = "block";
-
         adPlayer.muted = true;
         adPlayer.src = videoUrl;
 
+        // Force load & play for Tizen hardware decoder
+        adPlayer.load();
         const playPromise = adPlayer.play();
+
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
-              adPlayer.muted = false;
+              console.log("Playback started successfully.");
             })
             .catch((err) => {
-              console.error("Autoplay blocked:", err);
+              console.error("Tizen Autoplay blocked:", err);
             });
         }
 
         adPlayer.onerror = (e) => {
-          console.error("Video element error on Tizen:", e);
+          console.error("Tizen Video Decoder Error:", e);
+          adContainer.style.display = "none";
+          adPlayer.src = "";
         };
 
         adPlayer.onended = () => {
+          console.log("Ad finished, resuming background.");
           adPlayer.pause();
           adPlayer.src = "";
           adContainer.style.display = "none";
