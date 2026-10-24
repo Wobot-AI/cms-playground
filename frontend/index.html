@@ -13,7 +13,6 @@
         height: 100vh;
         background: transparent !important;
         overflow: hidden;
-        pointer-events: none;
       }
 
       #test-overlay {
@@ -22,22 +21,30 @@
         left: 0;
         width: 100vw;
         height: 100vh;
-        display: none;
-        background: #00ff00; /* Bright Neon Green */
+        display: none; /* Hidden by default */
+        background: #00ff00 !important; /* Bright Neon Green */
         z-index: 2147483647;
-        justify-content: center;
-        align-items: center;
+      }
+
+      /* Simple text container using block positioning instead of Flexbox */
+      #test-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         font-family: Arial, sans-serif;
-        font-size: 80px;
+        font-size: 60px;
         font-weight: bold;
         color: #000000;
         text-align: center;
-        pointer-events: auto;
+        width: 80%;
       }
     </style>
   </head>
   <body>
-    <div id="test-overlay">AD TRIGGERED SUCCESSFULLY!</div>
+    <div id="test-overlay">
+      <div id="test-text">AD TRIGGERED SUCCESSFULLY!</div>
+    </div>
 
     <script>
       const urlParams = new URLSearchParams(window.location.search);
@@ -48,12 +55,12 @@
 
       function showVisualAlert() {
         const overlay = document.getElementById("test-overlay");
-        console.log("Triggering visual DOM change on screen");
+        console.log("Triggering visual DOM change on Tizen");
 
-        // Force display block with bright green background
-        overlay.style.display = "flex";
+        // Use block display for Tizen compatibility
+        overlay.style.display = "block";
 
-        // Auto-hide after 5 seconds so we can test re-triggering
+        // Auto-hide after 5 seconds
         setTimeout(() => {
           overlay.style.display = "none";
         }, 5000);
