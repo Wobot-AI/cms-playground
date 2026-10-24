@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Yodeck Instant DOM Test</title>
+    <title>Static Test</title>
     <style>
       body,
       html {
@@ -11,80 +11,18 @@
         padding: 0;
         width: 100vw;
         height: 100vh;
-        background: transparent !important;
-        overflow: hidden;
+        background-color: #00ff00 !important; /* Solid bright green */
       }
-
-      #test-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        display: none; /* Hidden by default */
-        background: #00ff00 !important; /* Bright Neon Green */
-        z-index: 2147483647;
-      }
-
-      /* Simple text container using block positioning instead of Flexbox */
-      #test-text {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-family: Arial, sans-serif;
-        font-size: 60px;
-        font-weight: bold;
+      h1 {
         color: #000000;
+        font-size: 50px;
         text-align: center;
-        width: 80%;
+        padding-top: 40vh;
+        font-family: Arial, sans-serif;
       }
     </style>
   </head>
   <body>
-    <div id="test-overlay">
-      <div id="test-text">AD TRIGGERED SUCCESSFULLY!</div>
-    </div>
-
-    <script>
-      const urlParams = new URLSearchParams(window.location.search);
-      const screenId =
-        urlParams.get("screen_id") || "b8c714a1-33c0-49dd-bfc5-bec7153c8c81";
-      const BACKEND_URL =
-        "https://a5af-2401-4900-1c62-41d0-229c-c4f9-417f-89d5.ngrok-free.app";
-
-      function showVisualAlert() {
-        const overlay = document.getElementById("test-overlay");
-        console.log("Triggering visual DOM change on Tizen");
-
-        // Use block display for Tizen compatibility
-        overlay.style.display = "block";
-
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-          overlay.style.display = "none";
-        }, 5000);
-      }
-
-      // Poll backend every 2 seconds
-      setInterval(async () => {
-        try {
-          const res = await fetch(
-            `${BACKEND_URL}/api/v1/screens/${screenId}/check-status`,
-            {
-              headers: { "ngrok-skip-browser-warning": "1" },
-              cache: "no-store",
-            },
-          );
-          const data = await res.json();
-
-          if (data.shouldPlayAd) {
-            showVisualAlert();
-          }
-        } catch (error) {
-          console.warn("Polling request failed:", error.message);
-        }
-      }, 2000);
-    </script>
+    <h1>YODECK WEBVIEW IS WORKING</h1>
   </body>
 </html>
