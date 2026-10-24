@@ -3,26 +3,106 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Static Test</title>
+    <title>Tizen Standalone Test</title>
     <style>
-      body,
-      html {
+      * {
         margin: 0;
         padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
         width: 100vw;
         height: 100vh;
-        background-color: #00ff00 !important; /* Solid bright green */
+        overflow: hidden;
+        background: #000;
       }
-      h1 {
-        color: #000000;
-        font-size: 50px;
-        text-align: center;
-        padding-top: 40vh;
+
+      /* Solid fullscreen video loop */
+      #bg-video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        object-fit: cover;
+        z-index: 1;
+      }
+
+      /* Overlay banner inside the SAME DOM */
+      #ad-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        display: none;
+        background: #00ff00;
+        z-index: 99;
+      }
+
+      #ad-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 60px;
         font-family: Arial, sans-serif;
+        color: #000;
+        font-weight: bold;
       }
     </style>
   </head>
   <body>
-    <h1>YODECK WEBVIEW IS WORKING</h1>
+    <!-- Default background video using public sample MP4 -->
+    <video
+      id="bg-video"
+      autoplay
+      loop
+      muted
+      playsinline
+      src="https://www.w3schools.com/html/mov_bbb.mp4"
+    ></video>
+
+    <!-- Overlay banner -->
+    <div id="ad-overlay">
+      <div id="ad-text">INSTANT AD TRIGGERED!</div>
+    </div>
+
+    <script>
+      var BACKEND_URL =
+        "https://a5af-2401-4900-1c62-41d0-229c-c4f9-417f-89d5.ngrok-free.app";
+      var screenId = "b8c714a1-33c0-49dd-bfc5-bec7153c8c81";
+      var overlay = document.getElementById("ad-overlay");
+
+      function triggerAd() {
+        overlay.style.display = "block";
+        setTimeout(function () {
+          overlay.style.display = "none";
+        }, 5000);
+      }
+
+      // Standard XHR polling (Tizen safe)
+      setInterval(function () {
+        var xhr = new XMLHttpRequest();
+        xhr.open(
+          "GET",
+          BACKEND_URL + "/api/v1/screens/" + screenId + "/check-status",
+          true,
+        );
+        xhr.setRequestHeader("ngrok-skip-browser-warning", "1");
+        xhr.onload = function () {
+          if (xhr.status === 200) {
+            try {
+              var res = JSON.parse(xhr.responseText);
+              if (res.shouldPlayAd) {
+                triggerAd();
+              }
+            } catch (e) {}
+          }
+        };
+        xhr.send();
+      }, 1500);
+    </script>
   </body>
 </html>
